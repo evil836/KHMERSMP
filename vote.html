@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Minecraft Vote</title>
+
+<link href="https://fonts.cdnfonts.com/css/minecraft-4" rel="stylesheet">
+
+<style>
+
+/* RESET */
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:'Minecraft', sans-serif;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:url("https://i.imgur.com/QvYXjC7.jpeg");
+    background-size:cover;
+    background-position:center;
+    overflow:hidden;
+}
+
+body::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:rgba(0,0,0,0.55);
+    backdrop-filter:blur(5px);
+}
+
+/* BOX */
+.vote-box{
+    position:relative;
+    width:95%;
+    max-width:400px;
+    background:rgba(15,23,42,0.85);
+    border:2px solid rgba(34,197,94,0.5);
+    border-radius:20px;
+    padding:35px;
+    text-align:center;
+    color:white;
+    box-shadow:
+        0 0 25px rgba(34,197,94,0.3),
+        0 0 60px rgba(34,197,94,0.15);
+    z-index:2;
+}
+
+.vote-box h1{
+    margin-bottom:15px;
+    color:#22c55e;
+    text-shadow:0 0 12px #22c55e;
+    font-size:28px;
+}
+
+.vote-box p{
+    font-size:13px;
+    opacity:0.8;
+    margin-bottom:20px;
+}
+
+/* INPUT + SELECT */
+input, select{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    outline:none;
+    background:#020617;
+    color:white;
+    font-size:15px;
+    margin-bottom:12px;
+    border:1px solid rgba(255,255,255,0.08);
+}
+
+/* BUTTON */
+button{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    background:linear-gradient(135deg,#22c55e,#16a34a);
+    color:white;
+    font-size:16px;
+    cursor:pointer;
+    transition:0.3s;
+    font-family:'Minecraft', sans-serif;
+}
+
+button:hover{
+    transform:scale(1.03);
+    box-shadow:0 0 20px rgba(34,197,94,0.6);
+}
+
+button:disabled{
+    opacity:0.6;
+    cursor:not-allowed;
+}
+
+/* RESULT */
+#result{
+    margin-top:18px;
+    font-size:14px;
+}
+
+/* COOLDOWN (BIG & CLEAR) */
+.cooldown{
+    margin-bottom:18px;
+    background:linear-gradient(135deg, rgba(34,197,94,0.25), rgba(16,185,129,0.10));
+    border:2px solid rgba(34,197,94,0.7);
+    padding:14px;
+    border-radius:14px;
+    font-size:15px;
+    font-weight:bold;
+    color:#a7f3d0;
+    text-align:center;
+    box-shadow:0 0 20px rgba(34,197,94,0.25);
+}
+
+/* SPINNER */
+.spinner {
+    width: 18px;
+    height: 18px;
+    border: 3px solid rgba(255,255,255,0.2);
+    border-top: 3px solid #22c55e;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="vote-box">
+
+    <h1>COOKIEMC VOTE CRATE</h1>
+
+    <p>Vote every 24 hours to receive rewards</p>
+
+    <!-- COOLDOWN (TOP & CLEAR) -->
+    <div class="cooldown" id="cooldown">
+        🟢 READY TO VOTE
+    </div>
+
+    <!-- JAVA / BEDROCK -->
+    <select id="platform">
+        <option value="" selected disabled>🎮 ជ្រើសរើសប្រភេទហ្គេម</option>
+        <option value="java">Java Edition</option>
+        <option value="bedrock">Bedrock Edition</option>
+    </select>
+
+    <!-- USERNAME -->
+    <input type="text" id="username" placeholder="Minecraft Username">
+
+    <!-- BUTTON -->
+    <button id="voteBtn" onclick="vote()">
+        Vote
+    </button>
+
+    <!-- RESULT -->
+    <div id="result"></div>
+
+</div>
+
+<script>
+
+const API_URL = "http://us.apsara.lol:55031/vote";
+
+const username = document.getElementById("username");
+const platform = document.getElementById("platform");
+const cooldownBox = document.getElementById("cooldown");
+
+/* AUTO BEDROCK "." */
+function fixUsername(){
+
+    if(platform.value === "bedrock"){
+
+        if(username.value && !username.value.startsWith(".")){
+            username.value = "." + username.value;
+        }
+
+    }else{
+
+        username.value = username.value.replace(".","");
+    }
+}
+
+platform.addEventListener("change", fixUsername);
+username.addEventListener("input", fixUsername);
+
+/* FORMAT TIME */
+function formatTime(ms){
+
+    const total = Math.floor(ms / 1000);
+
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+
+    return `${h}h ${m}m ${s}s`;
+}
+
+/* LIVE COOLDOWN */
+setInterval(async () => {
+
+    if(!username.value){
+        cooldownBox.innerHTML = "🟢 ENTER USERNAME";
+        return;
+    }
+
+    try{
+
+        const res = await fetch(API_URL, {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+                username: username.value,
+                check: true
+            })
+        });
+
+        const data = await res.json();
+
+        if(data.cooldown){
+            cooldownBox.innerHTML = "⏳ COOLDOWN: " + formatTime(data.remaining);
+        }else{
+            cooldownBox.innerHTML = "🟢 READY AGAIN!";
+        }
+
+    }catch{
+        cooldownBox.innerHTML = "❌ SERVER OFFLINE";
+    }
+
+},1000);
+
+/* VOTE */
+async function vote(){
+
+    const result = document.getElementById("result");
+    const button = document.getElementById("voteBtn");
+
+    if(!username.value){
+        result.innerText = "❌ Enter username";
+        result.style.color = "orange";
+        return;
+    }
+
+    button.disabled = true;
+
+    result.innerHTML =
+        `<span class="spinner"></span> Sending vote...`;
+
+    try{
+
+        const res = await fetch(API_URL, {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+                username: username.value
+            })
+        });
+
+        const data = await res.json();
+
+        if(data.success){
+            result.innerText = "✅ Reward received!";
+            result.style.color = "#22c55e";
+        }else{
+            result.innerText = "❌ " + data.error;
+            result.style.color = "orange";
+        }
+
+    }catch{
+
+        result.innerText = "❌ Server offline";
+        result.style.color = "red";
+
+    }
+
+    button.disabled = false;
+}
+
+</script>
+
+</body>
+</html>
